@@ -22,6 +22,9 @@ final class IntegrationTest extends TestCase
      */
     public function testGame(string $inputFile, string $expectedOutputFile): void
     {
+        Assert::assertFileExists($inputFile, "Input file '{$inputFile}' does not exist.");
+        Assert::assertFileExists($expectedOutputFile, "Expected output file '{$expectedOutputFile}' does not exist.");
+
         $commandTester = new CommandTester(new RunGameCommand());
 
         $commandTester->execute(

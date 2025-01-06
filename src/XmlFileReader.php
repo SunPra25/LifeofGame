@@ -15,17 +15,18 @@ class XmlFileReader
         $life = $this->loadXmlFile();
         $this->validateXmlFile($life);
 
-        $iterationsCount = (int)$life->world->iterations;
+        $iterationsCount = (int) $life->world->iterations;
+        $worldSize = (int) $life->world->cells;
+        $speciesCount = (int) $life->world->species;
+
         if ($iterationsCount < 0) {
             throw new InvalidInputException("Value of element 'iterations' must be zero or positive number");
         }
 
-        $worldSize = (int) $life->world->cells;
         if ($worldSize <= 0) {
             throw new InvalidInputException("Value of element 'cells' must be positive number");
         }
 
-        $speciesCount = (int) $life->world->species;
         if ($speciesCount <= 0) {
             throw new InvalidInputException("Value of element 'species' must be positive number");
         }
@@ -38,19 +39,21 @@ class XmlFileReader
     private function loadXmlFile(): SimpleXMLElement
     {
         if (!file_exists($this->filePath)) {
-            throw new InvalidInputException("Unable to read nonexistent file");
+            throw new InvalidInputException("The file '{$this->filePath}' does not exist.");
         }
         try {
             libxml_use_internal_errors(true);
-            $life = simplexml_load_string(file_get_contents($this->filePath));
+            $xmlContent = file_get_contents($this->filePath);
+            $life = simplexml_load_string($xmlContent);
             $errors = libxml_get_errors();
             libxml_clear_errors();
-            if (count($errors) > 0) {
-                throw new InvalidInputException("Cannot read XML file");
+
+            if ($life === false || count($errors) > 0) {
+                throw new InvalidInputException("Failed to parse the XML file.");
             }
         }
-        catch (\Exception) {
-            throw new InvalidInputException("Cannot read XML file");
+        catch (\Exception $e) {
+            throw new InvalidInputException("An error occurred while reading the XML file: " . $e->getMessage());
         }
         return $life;
     }

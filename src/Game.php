@@ -43,68 +43,58 @@ class Game
         $output->saveWorld($this->size, $this->species, $this->cells);
     }
 
+    private function getNeighbors(int $x, int $y): array
+    {
+        $neighbors = [];
+        $directions = [
+            [-1, -1], [-1, 0], [-1, 1],
+            [0, -1],         [0, 1],
+            [1, -1], [1, 0], [1, 1]
+        ];
+
+        foreach ($directions as [$dy, $dx]) {
+            $nx = $x + $dx;
+            $ny = $y + $dy;
+
+            if ($nx >= 0 && $nx < $this->size && $ny >= 0 && $ny < $this->size) {
+                $neighbors[] = $this->cells[$ny][$nx];
+            }
+        }
+
+        return $neighbors;
+    }
+
     private function evolveCell(int $x, int $y): ?int
     {
-        $cell = $this->cells[$y][$x];
-        $neighbours = [];
+        $cell = $this->cells[$y][$x]; // Current state of the cell
+        $neighbours = $this->getNeighbors($x, $y);
 
-        if ($y - 1 >= 0 && $x - 1 >= 0) {
-            $neighbours[] = $this->cells[$y - 1][$x - 1];
-        }
-        if ($y - 1 >= 0) {
-            $neighbours[] = $this->cells[$y - 1][$x];
-        }
-        if ($y - 1 >= 0 && $x + 1 < $this->size) {
-            $neighbours[] = $this->cells[$y - 1][$x + 1];
+        // Count live neighbors
+        $liveNeighboursCount = count(array_filter($neighbours, fn($n) => $n !== null));
+
+        // Rule 1: Underpopulation (fewer than 2 live neighbors)
+        if ($cell !== null && $liveNeighboursCount < 2) {
+            return null; // Cell dies
         }
 
-        if ($x - 1 >= 0) {
-            $neighbours[] = $this->cells[$y][$x - 1];
-        }
-        if ($x + 1 < $this->size) {
-            $neighbours[] = $this->cells[$y][$x + 1];
+        // Rule 2: Survival (2 or 3 live neighbors)
+        if ($cell !== null && ($liveNeighboursCount === 2 || $liveNeighboursCount === 3)) {
+            return $cell; // Cell lives
         }
 
-        if ($y + 1 < $this->size && $x - 1 >= 0) {
-            $neighbours[] = $this->cells[$y + 1][$x - 1];
-        }
-        if ($y + 1 < $this->size) {
-            $neighbours[] = $this->cells[$y + 1][$x];
-        }
-        if ($y + 1 < $this->size && $x + 1 < $this->size) {
-            $neighbours[] = $this->cells[$y + 1][$x + 1];
+        // Rule 3: Overpopulation (more than 3 live neighbors)
+        if ($cell !== null && $liveNeighboursCount > 3) {
+            return null; // Cell dies
         }
 
-        $sameSpeciesCount = 0;
-        foreach ($neighbours as $neighbour) {
-            if ($neighbour === $cell) {
-                $sameSpeciesCount++;
-            }
+        // Rule 4: Reproduction (dead cell with exactly 3 live neighbors)
+        if ($cell === null && $liveNeighboursCount === 3) {
+            // Determine species for reproduction
+            $speciesCounts = array_count_values(array_filter($neighbours, fn($n) => $n !== null));
+            arsort($speciesCounts); // Sort by count, descending
+            return (int) array_key_first($speciesCounts); // Return the most common species
         }
 
-        if ($cell !== null && $sameSpeciesCount >= 2 && $sameSpeciesCount <= 3) {
-            return $cell;
-        }
-
-        $speciesForBirth = [];
-        for ($i = 0; $i < $this->species; $i++) {
-            $oneSpeciesCount = 0;
-
-            foreach ($neighbours as $neighbour) {
-                if ($neighbour === $i) {
-                    $oneSpeciesCount++;
-                }
-            }
-
-            if ($oneSpeciesCount === 3) {
-                $speciesForBirth[] = $i;
-            }
-        }
-
-        if (count($speciesForBirth) > 0) {
-            return $speciesForBirth[array_rand($speciesForBirth)];
-        }
-
-        return null;
+        return null; // Default case: Cell stays dead
     }
 }
